@@ -1,0 +1,13 @@
+{
+  "reports": [
+    {
+      "id": "r_246cbf1979f178a9",
+      "type": "traffic_jam",
+      "severity": 3,
+      "description": "",
+      "lat": 0.000006,
+      "lon": 0.000002,
+      "time": 1773108324741
+    }
+  ]
+}

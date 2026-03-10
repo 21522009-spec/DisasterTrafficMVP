@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DISASTER&TRAFFIC 1.0</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"></script>
+
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+      <div class="brand">
+          <img class="brand-logo" src="/logo.png" alt="Disaster & Traffic" />
+      </div>
+    <div class="hint">Click bản đồ để chọn vị trí khi tạo report.</div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel">
+      <h2>Bộ lọc</h2>
+
+      <label class="row">
+        <input type="checkbox" id="toggle-usgs" checked />
+        <span>Động đất (Nguồn: USGS)</span>
+      </label>
+
+      <label class="row">
+        <input type="checkbox" id="toggle-eonet" checked />
+        <span>Những sự kiện tự nhiên (Nguồn tạm: NASA EONET)</span>
+      </label>
+
+      <label class="row">
+        <input type="checkbox" id="toggle-reports" checked />
+        <span>Những báo cáo được ghi nhận</span>
+      </label>
+
+      <label class="row">
+        <input type="checkbox" id="toggle-traffic" />
+        <span>Luồng phương tiện (Nguồn: TomTom)</span>
+      </label>
+
+      <div class="section">
+        <button id="btn-refresh">🔄 Refresh</button>
+        <button id="btn-add-report">➕ Thêm báo cáo</button>
+      </div>
+
+      <div class="section">
+        <h3>Khu vực được báo cáo (tạm chưa có)</h3>
+        <p class="small">
+          Hướng dẫn(dự kiến):
+          Bấm <b>Start</b>, sau đó click 2 điểm trên map để tạo bounding box.
+          Khi có event mới rơi vào vùng này, web sẽ hiện cảnh báo.
+        </p>
+        <div class="section">
+          <button id="btn-subscribe">Start</button>
+          <button id="btn-clear-subscribe">Clear</button>
+        </div>
+        <div class="small" id="sub-status"></div>
+      </div>
+
+      <div class="section small" id="status"></div>
+
+      <footer class="footer small">
+        © Bản demo version 1.0
+      </footer>
+    </aside>
+
+    <section class="mapwrap">
+      <div id="map"></div>
+      <div id="toast" class="toast hidden"></div>
+    </section>
+  </main>
+
+  <!-- Socket.IO client được hỗ trợ ở backend -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
