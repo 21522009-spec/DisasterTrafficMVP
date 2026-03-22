@@ -1,81 +1,156 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>DISASTER&TRAFFIC 1.0</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Cảnh báo Thiên tai & Giao thông TP.HCM</title>
+    <script src="/socket.io/socket.io.js"></script>
 
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css" />
-  <script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" type="text/css" href="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.23.0/maps/maps.css">
+    <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.23.0/maps/maps-web.min.js"></script>
+
+    <style>
+        /* Đảm bảo bản đồ không bị lỗi hiển thị */
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
-<body>
-  <header class="topbar">
-      <div class="brand">
-          <img class="brand-logo" src="/logo.png" alt="Disaster & Traffic" />
-      </div>
-    <div class="hint">Click bản đồ để chọn vị trí khi tạo report.</div>
-  </header>
+<body class="h-screen w-screen flex overflow-hidden bg-gray-50 font-sans">
 
-  <main class="layout">
-    <aside class="panel">
-      <h2>Bộ lọc</h2>
-
-      <label class="row">
-        <input type="checkbox" id="toggle-usgs" checked />
-        <span>Động đất (Nguồn: USGS)</span>
-      </label>
-
-      <label class="row">
-        <input type="checkbox" id="toggle-eonet" checked />
-        <span>Những sự kiện tự nhiên (Nguồn tạm: NASA EONET)</span>
-      </label>
-
-      <label class="row">
-        <input type="checkbox" id="toggle-reports" checked />
-        <span>Những báo cáo được ghi nhận</span>
-      </label>
-
-      <label class="row">
-        <input type="checkbox" id="toggle-traffic" />
-        <span>Luồng phương tiện (Nguồn: TomTom)</span>
-      </label>
-
-      <div class="section">
-        <button id="btn-refresh">🔄 Refresh</button>
-        <button id="btn-add-report">➕ Thêm báo cáo</button>
-      </div>
-
-      <div class="section">
-        <h3>Khu vực được báo cáo (tạm chưa có)</h3>
-        <p class="small">
-          Hướng dẫn(dự kiến):
-          Bấm <b>Start</b>, sau đó click 2 điểm trên map để tạo bounding box.
-          Khi có event mới rơi vào vùng này, web sẽ hiện cảnh báo.
-        </p>
-        <div class="section">
-          <button id="btn-subscribe">Start</button>
-          <button id="btn-clear-subscribe">Clear</button>
+    <div class="w-80 bg-white shadow-xl z-10 flex flex-col">
+        <div class="p-5 border-b">
+            <h1 class="text-xl font-bold text-blue-700">HCM City Monitor</h1>
+            <p class="text-sm text-gray-500">Giám sát Giao thông & Thiên tai</p>
         </div>
-        <div class="small" id="sub-status"></div>
-      </div>
 
-      <div class="section small" id="status"></div>
+        <div class="p-5 flex-1">
+            <h2 class="font-semibold mb-3">Bộ lọc bản đồ</h2>
 
-      <footer class="footer small">
-        © Bản demo version 1.0
-      </footer>
-    </aside>
+            <div class="space-y-3">
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="toggle-traffic" class="form-checkbox h-5 w-5 text-blue-600" checked>
+                    <span class="text-gray-700">Luồng giao thông (Traffic)</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="toggle-fire" class="form-checkbox h-5 w-5 text-red-600" checked>
+                    <span class="text-gray-700">Cảnh báo Hỏa hoạn</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="toggle-flood" class="form-checkbox h-5 w-5 text-blue-400" checked>
+                    <span class="text-gray-700">Cảnh báo Ngập lụt</span>
+                </label>
+            </div>
 
-    <section class="mapwrap">
-      <div id="map"></div>
-      <div id="toast" class="toast hidden"></div>
-    </section>
-  </main>
+            <div class="mt-8">
+                <h2 class="font-semibold mb-3 text-red-600 flex items-center">
+                    <span class="animate-pulse h-3 w-3 bg-red-600 rounded-full inline-block mr-2"></span>
+                    Cảnh báo trực tiếp
+                </h2>
+                <ul id="alert-list" class="space-y-2 text-sm">
+                    <li class="p-3 bg-red-50 border-l-4 border-red-500 rounded text-red-700">
+                        <strong>🔥 Có cháy:</strong> Khu vực Quận 1 (Chờ AI...)
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
-  <!-- Socket.IO client được hỗ trợ ở backend -->
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/app.js"></script>
+    <div id="map" class="flex-1 relative"></div>
+
+    <script>
+        // 1. Khởi tạo bản đồ TomTom
+        const tomtomKey = 'J17ByXMwxXysUPGX15WIuNA8bcw6odPa'; // Key của bạn
+        const map = tt.map({
+            key: tomtomKey,
+            container: 'map',
+            center: [106.660172, 10.762622], // TP.HCM
+            zoom: 12.5
+        });
+
+        // ==========================================
+        // 2. KẾT NỐI SOCKET.IO (LẮNG NGHE REALTIME)
+        // ==========================================
+        const socket = io(); // Tự động kết nối tới server Node.js của bạn
+
+        // Hàm tạo Marker (Giữ nguyên như cũ)
+        function addAlertMarker(lng, lat, type) {
+            const customIcon = document.createElement('div');
+            customIcon.className = 'w-10 h-10 flex items-center justify-center rounded-full shadow-lg text-2xl bg-white animate-bounce';
+
+            if (type === 'fire') {
+                customIcon.innerHTML = '🔥';
+                customIcon.classList.add('border-2', 'border-red-500');
+            } else {
+                customIcon.innerHTML = '🌊';
+                customIcon.classList.add('border-2', 'border-blue-500');
+            }
+
+            new tt.Marker({ element: customIcon })
+                .setLngLat([lng, lat])
+                .addTo(map);
+        }
+
+        // Hàm thêm thông báo vào Sidebar (Giữ nguyên như cũ)
+        function addAlertToSidebar(locationName, type) {
+            const list = document.getElementById('alert-list');
+            const li = document.createElement('li');
+
+            if (type === 'fire') {
+                li.className = "p-3 bg-red-50 border-l-4 border-red-500 rounded text-red-700 shadow-sm transition-all";
+                li.innerHTML = `<strong>🔥 Cháy:</strong> ${locationName}`;
+            } else {
+                li.className = "p-3 bg-blue-50 border-l-4 border-blue-500 rounded text-blue-700 shadow-sm transition-all";
+                li.innerHTML = `<strong>🌊 Ngập:</strong> ${locationName}`;
+            }
+
+            list.prepend(li);
+        }
+
+        // ==========================================
+        // 3. LẤY DỮ LIỆU TỪ MONGODB & LẮNG NGHE SOCKET
+        // ==========================================
+
+        // Hàm lấy lịch sử khi vừa mở trang
+        async function loadHistoryAlerts() {
+            try {
+                const response = await fetch('/api/alerts');
+                const alerts = await response.json();
+
+                // Vẽ các điểm từ DB lên bản đồ (vẽ từ cũ đến mới để cái mới nhất nằm trên cùng)
+                alerts.reverse().forEach(alert => {
+                    addAlertMarker(alert.lng, alert.lat, alert.type);
+                    addAlertToSidebar(alert.address, alert.type);
+                });
+            } catch (error) {
+                console.error("Lỗi tải dữ liệu:", error);
+            }
+        }
+
+        // Lắng nghe khi có sự cố mới từ Server (Do AI gửi hoặc do test)
+        socket.on('new-alert', (newAlert) => {
+            // Vẽ ngay lập tức lên bản đồ
+            addAlertMarker(newAlert.lng, newAlert.lat, newAlert.type);
+            addAlertToSidebar(newAlert.address, newAlert.type);
+
+            // Trượt bản đồ tới điểm vừa xảy ra sự cố cho ngầu
+            map.panTo([newAlert.lng, newAlert.lat]);
+        });
+
+        // Bật Traffic Flow và tải dữ liệu khi bản đồ load xong
+        map.on('load', () => {
+            map.showTrafficFlow();
+            loadHistoryAlerts(); // Gọi hàm lấy dữ liệu Database ở đây
+        });
+
+        // Nút toggle traffic (Giữ nguyên)
+        document.getElementById('toggle-traffic').addEventListener('change', (e) => {
+            if (e.target.checked) map.showTrafficFlow();
+            else map.hideTrafficFlow();
+        });
+    </script>
 </body>
 </html>
